@@ -48,8 +48,9 @@ public class AddonLib {
      * Reloads the addon registry and checks for updates
      */
     public void reload(boolean upgrade) {
+        this.config.loadConfig();
         this.addonManager.loadRegistry();
-        this.addonManager.checkAndUpdateAddons(false);
+        this.addonManager.checkAndUpdateAddons(upgrade);
     }
 
 }
