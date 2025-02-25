@@ -53,6 +53,9 @@ public class AddonConfig {
     }
 
     public AddonConfig(File dataFolder) {
+        if (!dataFolder.exists()) {
+            dataFolder.mkdirs();
+        }
         this.configFile = new File(dataFolder, "addons.json");
         loadConfig();
     }
@@ -85,8 +88,17 @@ public class AddonConfig {
 
     public void saveConfig() {
         try {
+
             if (!configFile.getParentFile().exists()) {
                 configFile.getParentFile().mkdirs();
+            }
+
+            if (!configFile.exists()) {
+                try {
+                    configFile.createNewFile();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
 
             try (FileWriter writer = new FileWriter(configFile)) {
