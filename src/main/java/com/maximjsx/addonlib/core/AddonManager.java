@@ -38,8 +38,8 @@ import java.nio.file.StandardCopyOption;
 import java.util.Map;
 
 public class AddonManager {
-    private static final String PRIMARY_REGISTRY_URL = "https://cdn.maximjsx.com/hologramlib/registry.json";
-    private static final String BACKUP_REGISTRY_URL = "https://raw.githubusercontent.com/HologramLib/Addons/main/registry.json";
+    private String PRIMARY_REGISTRY_URL = "";
+    private String BACKUP_REGISTRY_URL = "";
 
     private final Logger logger;
     private final AddonConfig config;
@@ -47,12 +47,18 @@ public class AddonManager {
     private final File folder;
     private final String currentVersion;
 
-    public AddonManager(Logger logger, File folder, String version, AddonConfig config) {
+    public AddonManager(Logger logger, File folder, String version, AddonConfig config, String url, String backupUrl) {
+        this.PRIMARY_REGISTRY_URL = url;
+        this.BACKUP_REGISTRY_URL = backupUrl;
         this.logger = logger;
         this.folder = folder;
         this.currentVersion = version;
         this.config = config;
         this.checkAndUpdateAddons(config.isAutoUpgrade());
+    }
+
+    public AddonManager(Logger logger, File folder, String version, AddonConfig config) {
+        this(logger, folder, version, config, "https://cdn.maximjsx.com/hologramlib/registry.json", "https://raw.githubusercontent.com/HologramLib/Addons/main/registry.json");
     }
 
     public void loadRegistry() {
