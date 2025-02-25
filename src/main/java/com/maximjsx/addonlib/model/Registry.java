@@ -26,7 +26,7 @@ import lombok.Data;
 import java.util.Map;
 
 @Data
-public class AddonRegistry {
+public class Registry {
     private String baseURL;
     private Map<String, AddonInfo> addons;
 

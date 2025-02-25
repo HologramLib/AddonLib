@@ -21,7 +21,7 @@
 
 import com.maximjsx.addonlib.config.AddonConfig;
 import com.maximjsx.addonlib.model.AddonEntry;
-import com.maximjsx.addonlib.model.AddonRegistry;
+import com.maximjsx.addonlib.model.Registry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -80,8 +80,8 @@ class ConfigTest {
 
     @Test
     void testMergeNewAddons() {
-        Map<String, AddonRegistry.AddonInfo> registryAddons = new HashMap<>();
-        AddonRegistry.AddonInfo info = new AddonRegistry.AddonInfo();
+        Map<String, Registry.AddonInfo> registryAddons = new HashMap<>();
+        Registry.AddonInfo info = new Registry.AddonInfo();
         info.setDescription("Test Description");
         registryAddons.put("test-addon", info);
 

@@ -24,7 +24,7 @@ package com.maximjsx.addonlib.core;
 import com.google.gson.Gson;
 import com.maximjsx.addonlib.config.AddonConfig;
 import com.maximjsx.addonlib.model.AddonEntry;
-import com.maximjsx.addonlib.model.AddonRegistry;
+import com.maximjsx.addonlib.model.Registry;
 import com.maximjsx.addonlib.util.Logger;
 import com.maximjsx.addonlib.util.VersionUtils;
 
@@ -43,7 +43,7 @@ public class AddonManager {
 
     private final Logger logger;
     private final AddonConfig config;
-    private AddonRegistry registry;
+    private Registry registry;
     private final File folder;
     private final String currentVersion;
 
@@ -62,7 +62,7 @@ public class AddonManager {
                 registryJson = fetchUrl(BACKUP_REGISTRY_URL);
             }
             if (registryJson != null) {
-                registry = new Gson().fromJson(registryJson, AddonRegistry.class);
+                registry = new Gson().fromJson(registryJson, Registry.class);
             }
             if (registry != null) {
                 config.mergeNewAddons(registry.getAddons());
@@ -79,9 +79,9 @@ public class AddonManager {
             return;
         }
 
-        for (Map.Entry<String, AddonRegistry.AddonInfo> entry : registry.getAddons().entrySet()) {
+        for (Map.Entry<String, Registry.AddonInfo> entry : registry.getAddons().entrySet()) {
             String addonName = entry.getKey();
-            AddonRegistry.AddonInfo addonInfo = entry.getValue();
+            Registry.AddonInfo addonInfo = entry.getValue();
             AddonEntry configEntry = config.getAddonEntries().get(addonName);
 
             if (configEntry == null || !configEntry.isEnabled()) continue;

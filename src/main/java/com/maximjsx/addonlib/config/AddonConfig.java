@@ -24,7 +24,7 @@ package com.maximjsx.addonlib.config;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.maximjsx.addonlib.model.AddonEntry;
-import com.maximjsx.addonlib.model.AddonRegistry;
+import com.maximjsx.addonlib.model.Registry;
 import lombok.Data;
 
 import java.io.File;
@@ -84,12 +84,18 @@ public class AddonConfig {
     }
 
     public void saveConfig() {
-        try (FileWriter writer = new FileWriter(configFile)) {
-            configData.addons = addonEntries;
-            configData.settings.autoUpgrade = autoUpgrade;
+        try {
+            if (!configFile.getParentFile().exists()) {
+                configFile.getParentFile().mkdirs();
+            }
 
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            gson.toJson(configData, writer);
+            try (FileWriter writer = new FileWriter(configFile)) {
+                configData.addons = addonEntries;
+                configData.settings.autoUpgrade = autoUpgrade;
+
+                Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                gson.toJson(configData, writer);
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -106,9 +112,9 @@ public class AddonConfig {
         saveConfig();
     }
 
-    public void mergeNewAddons(Map<String, AddonRegistry.AddonInfo> registryAddons) {
+    public void mergeNewAddons(Map<String, Registry.AddonInfo> registryAddons) {
         for (String addonName : registryAddons.keySet()) {
-            AddonRegistry.AddonInfo addonInfo = registryAddons.get(addonName);
+            Registry.AddonInfo addonInfo = registryAddons.get(addonName);
             if (!addonEntries.containsKey(addonName)) {
                 AddonEntry newEntry = new AddonEntry();
                 newEntry.setEnabled(false);
