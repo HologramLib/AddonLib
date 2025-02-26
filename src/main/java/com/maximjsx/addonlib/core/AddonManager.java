@@ -57,10 +57,6 @@ public class AddonManager {
         this.checkAndUpdateAddons(config.isAutoUpgrade());
     }
 
-    public AddonManager(Logger logger, File folder, String version, AddonConfig config) {
-        this(logger, folder, version, config, "https://cdn.maximjsx.com/hologramlib/registry.json", "https://raw.githubusercontent.com/HologramLib/Addons/main/registry.json");
-    }
-
     public void loadRegistry() {
         try {
             String registryJson = fetchUrl(PRIMARY_REGISTRY_URL);
@@ -154,7 +150,7 @@ public class AddonManager {
             }
         }
 
-        cleanupAddonJars(upgrade);
+        cleanupAddonJars();
 
         for (Map.Entry<String, AddonEntry> entry : config.getAddonEntries().entrySet()) {
             String addonName = entry.getKey();
@@ -172,7 +168,7 @@ public class AddonManager {
         }
     }
 
-    private void cleanupAddonJars(boolean upgrade) {
+    private void cleanupAddonJars() {
         for (Map.Entry<String, AddonEntry> entry : config.getAddonEntries().entrySet()) {
             String addonName = entry.getKey();
             AddonEntry configEntry = entry.getValue();

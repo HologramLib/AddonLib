@@ -24,60 +24,51 @@ package com.maximjsx.addonlib.core;
 import com.maximjsx.addonlib.config.AddonConfig;
 import com.maximjsx.addonlib.util.Logger;
 import lombok.Getter;
+import lombok.experimental.Accessors;
 
 import java.io.File;
 
 public class AddonLib {
-    private final AddonManager addonManager;
+
+    private AddonManager addonManager;
+
     @Getter
-    private final AddonConfig config;
+    private AddonConfig config;
 
     /**
-     * @param folder The plugins folder
-     * @param version The version of the plugin e.g. 1.7.1 (HologramLib)
-     * @param enabledAddons by default enabled addons
+     * The primary registry URL
      */
-    public AddonLib(Logger logger, File folder, String version, String[] enabledAddons) {
-        this.config = new AddonConfig(folder, enabledAddons);
-        this.addonManager = new AddonManager(logger, folder, version, config);
-        this.addonManager.loadRegistry();
-        this.addonManager.checkAndUpdateAddons(config.isAutoUpgrade());
-    }
+    @Getter @Accessors(chain = true)
+    private String registry = "https://cdn.maximjsx.com/hologramlib/registry.json";
 
     /**
-     * @param folder The plugins folder
-     * @param version The version of the plugin e.g. 1.7.1 (HologramLib)
-     * @param registry The url to your registry.json file
-     * @param enabledAddons by default enabled addons
+     * The primary registry URL
      */
-    public AddonLib(Logger logger, File folder, String version, String registry, String backupRegistry, String[] enabledAddons) {
-        this.config = new AddonConfig(folder, enabledAddons);
-        this.addonManager = new AddonManager(logger, folder, version, config, registry, backupRegistry);
-        this.addonManager.loadRegistry();
-        this.addonManager.checkAndUpdateAddons(config.isAutoUpgrade());
-    }
+    @Getter @Accessors(chain = true)
+    private String backupRegistry = "https://raw.githubusercontent.com/HologramLib/Addons/main/registry.json";
 
-    /**
-     * @param folder The plugins folder
-     * @param version The version of the plugin e.g. 1.7.1 (HologramLib)
-     * @param registry The url to your registry.json file
-     */
-    public AddonLib(Logger logger, File folder, String version, String registry, String backupRegistry) {
-        this.config = new AddonConfig(folder);
-        this.addonManager = new AddonManager(logger, folder, version, config, registry, backupRegistry);
-        this.addonManager.loadRegistry();
-        this.addonManager.checkAndUpdateAddons(config.isAutoUpgrade());
-    }
+    @Getter @Accessors(chain = true)
+    private String[] enabledAddons =  new String[]{};
 
+    private final File folder;
+
+    private final Logger logger;
+
+    private final String version;
 
     /**
      * @param folder The plugins folder
      * @param version The version of the plugin e.g. 1.7.1 (HologramLib)
      */
     public AddonLib(Logger logger, File folder, String version) {
-        this.config = new AddonConfig(folder);
-        this.addonManager = new AddonManager(logger, folder, version, config);
+        this.logger = logger;
+        this.folder = folder;
+        this.version = version;
+    }
 
+    public void init() {
+        this.config = new AddonConfig(folder, enabledAddons);
+        this.addonManager = new AddonManager(logger, folder, version, config, registry, backupRegistry);
         this.addonManager.loadRegistry();
         this.addonManager.checkAndUpdateAddons(config.isAutoUpgrade());
     }
@@ -86,6 +77,10 @@ public class AddonLib {
      * Reloads the addon registry and checks for updates
      */
     public void reload(boolean upgrade) {
+        if(config == null || addonManager == null) {
+            logger.error("Failed to reload AddonLib because it was not initialized! Use AddonLib#init()!");
+            return;
+        }
         this.config.loadConfig();
         this.addonManager.loadRegistry();
         this.addonManager.checkAndUpdateAddons(upgrade);
