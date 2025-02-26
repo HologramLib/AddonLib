@@ -9,7 +9,7 @@ AddonLib is a library that helps you manage optional addons for your Minecraft p
 - **Centralized Management**: Track addons via a simple **config** file.
 - **User Friendly**: Users can install **addons** without manual downloads.
 
-## Definitions
+### Definitions
 
 - **Main Plugin**: Your plugin (e.g., HologramLib) that others can extend with addons.
 - **Addon**: A separate plugin that depends on your main plugin to work.

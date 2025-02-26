@@ -90,33 +90,57 @@ public class AddonManager {
             Registry.AddonInfo addonInfo = entry.getValue();
             AddonEntry configEntry = config.getAddonEntries().get(addonName);
 
-            if (configEntry == null || !configEntry.isEnabled()) continue;
+            if (configEntry == null) continue;
 
             String latestVersion = findLatestCompatibleVersion(addonInfo.getVersions());
+
             if (latestVersion == null) {
-                if (upgrade) {
-                    config.getAddonEntries().remove(addonName);
-                    this.logger.warning("Removing incompatible addon: " + addonName);
+                if (configEntry.isEnabled()) {
+                    configEntry.setEnabled(false);
+                    config.saveAddonEntry(addonName, configEntry);
+                    this.logger.warning("Disabled incompatible addon: " + addonName);
+
+                    removeAddonJar(addonName, configEntry.getInstalledVersion());
                 }
                 continue;
             }
 
-            if (upgrade || !latestVersion.equals(configEntry.getInstalledVersion())) {
-                installAddon(addonName, latestVersion);
+            if (upgrade || configEntry.getInstalledVersion() == null ||
+                    !latestVersion.equals(configEntry.getInstalledVersion())) {
                 configEntry.setInstalledVersion(latestVersion);
                 configEntry.setDescription(addonInfo.getDescription());
                 config.saveAddonEntry(addonName, configEntry);
             }
         }
-        removeDisabledAddons();
+
+        for (Map.Entry<String, AddonEntry> entry : config.getAddonEntries().entrySet()) {
+            String addonName = entry.getKey();
+            AddonEntry configEntry = entry.getValue();
+
+            if (configEntry.isEnabled() && configEntry.getInstalledVersion() != null) {
+                File addonFile = new File(this.folder.getParentFile(),
+                        addonName + "-" + configEntry.getInstalledVersion() + ".jar");
+
+                if (!addonFile.exists()) {
+                    this.logger.info("Addon JAR missing: " + addonName + ". Downloading...");
+                    installAddon(addonName, configEntry.getInstalledVersion());
+                }
+            } else if (!configEntry.isEnabled() && configEntry.getInstalledVersion() != null) {
+                removeAddonJar(addonName, configEntry.getInstalledVersion());
+            }
+        }
     }
 
-    private void removeDisabledAddons() {
-        for (Map.Entry<String, AddonEntry> entry : config.getAddonEntries().entrySet()) {
-            if (!entry.getValue().isEnabled()) {
-                File jar = new File(this.folder.getParentFile(),
-                        entry.getKey() + "-" + entry.getValue().getInstalledVersion() + ".jar");
-                if (jar.exists()) jar.delete();
+    private void removeAddonJar(String addonName, String version) {
+        if (version == null) return;
+
+        File jar = new File(this.folder.getParentFile(),
+                addonName + "-" + version + ".jar");
+        if (jar.exists()) {
+            if (jar.delete()) {
+                this.logger.info("Removed disabled addon JAR: " + jar.getName());
+            } else {
+                this.logger.warning("Failed to remove disabled addon JAR: " + jar.getName());
             }
         }
     }
