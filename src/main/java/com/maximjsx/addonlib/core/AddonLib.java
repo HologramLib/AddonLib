@@ -36,11 +36,23 @@ public class AddonLib {
      * @param folder The plugins folder
      * @param version The version of the plugin e.g. 1.7.1 (HologramLib)
      * @param registry The url to your registry.json file
+     * @param enabledAddons by default enabled addons
+     */
+    public AddonLib(Logger logger, File folder, String version, String registry, String backupRegistry, String[] enabledAddons) {
+        this.config = new AddonConfig(folder, enabledAddons);
+        this.addonManager = new AddonManager(logger, folder, version, config, registry, backupRegistry);
+        this.addonManager.loadRegistry();
+        this.addonManager.checkAndUpdateAddons(config.isAutoUpgrade());
+    }
+
+    /**
+     * @param folder The plugins folder
+     * @param version The version of the plugin e.g. 1.7.1 (HologramLib)
+     * @param registry The url to your registry.json file
      */
     public AddonLib(Logger logger, File folder, String version, String registry, String backupRegistry) {
         this.config = new AddonConfig(folder);
         this.addonManager = new AddonManager(logger, folder, version, config, registry, backupRegistry);
-
         this.addonManager.loadRegistry();
         this.addonManager.checkAndUpdateAddons(config.isAutoUpgrade());
     }

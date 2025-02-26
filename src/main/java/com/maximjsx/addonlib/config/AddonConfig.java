@@ -39,6 +39,7 @@ public class AddonConfig {
     private final File configFile;
     private ConfigData configData;
     private final Map<String, AddonEntry> addonEntries = new HashMap<>();
+    private final String[] enabledByDefault;
     private boolean autoUpgrade;
 
     @Data
@@ -57,10 +58,21 @@ public class AddonConfig {
             dataFolder.mkdirs();
         }
         this.configFile = new File(dataFolder, "addons.json");
+        this.enabledByDefault = new String[0];
+        loadConfig();
+    }
+
+    public AddonConfig(File dataFolder, String[] enabledAddons) {
+        if (!dataFolder.exists()) {
+            dataFolder.mkdirs();
+        }
+        this.configFile = new File(dataFolder, "addons.json");
+        this.enabledByDefault = enabledAddons != null ? enabledAddons : new String[0];
         loadConfig();
     }
 
     public void loadConfig() {
+        boolean isNewConfig = !configFile.exists();
         if (!configFile.exists()) {
             createDefaultConfig();
         }
@@ -71,6 +83,14 @@ public class AddonConfig {
 
             if (configData.addons != null) {
                 addonEntries.putAll(configData.addons);
+            }
+
+            if (isNewConfig && enabledByDefault != null) {
+                for (String addonName : enabledByDefault) {
+                    AddonEntry entry = addonEntries.computeIfAbsent(addonName, k -> new AddonEntry());
+                    entry.setEnabled(true);
+                }
+                saveConfig();
             }
 
             autoUpgrade = configData.settings.autoUpgrade;
