@@ -24,6 +24,7 @@ package com.maximjsx.addonlib.core;
 import com.maximjsx.addonlib.config.AddonConfig;
 import com.maximjsx.addonlib.util.Logger;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.experimental.Accessors;
 
 import java.io.File;
@@ -38,16 +39,19 @@ public class AddonLib {
     /**
      * The primary registry URL
      */
-    @Getter @Accessors(chain = true)
+    @Getter @Setter @Accessors(chain = true)
     private String registry = "https://cdn.maximjsx.com/hologramlib/registry.json";
 
     /**
      * The primary registry URL
      */
-    @Getter @Accessors(chain = true)
+    @Getter @Setter @Accessors(chain = true)
     private String backupRegistry = "https://raw.githubusercontent.com/HologramLib/Addons/main/registry.json";
 
-    @Getter @Accessors(chain = true)
+    /*
+    Addons which will be enabled by default when the config is created
+     */
+    @Getter @Setter @Accessors(chain = true)
     private String[] enabledAddons =  new String[]{};
 
     private final File folder;
