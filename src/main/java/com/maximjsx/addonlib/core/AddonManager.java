@@ -38,8 +38,8 @@ import java.nio.file.StandardCopyOption;
 import java.util.Map;
 
 public class AddonManager {
-    private String PRIMARY_REGISTRY_URL = "";
-    private String BACKUP_REGISTRY_URL = "";
+    private final String PRIMARY_REGISTRY_URL;
+    private final String BACKUP_REGISTRY_URL;
 
     private final Logger logger;
     private final AddonConfig config;
@@ -89,7 +89,6 @@ public class AddonManager {
             String addonName = entry.getKey();
             Registry.AddonInfo addonInfo = entry.getValue();
             AddonEntry configEntry = config.getAddonEntries().get(addonName);
-
             if (configEntry == null) {
                 configEntry = new AddonEntry();
                 configEntry.setEnabled(false);
@@ -99,10 +98,7 @@ public class AddonManager {
             }
 
             if (!configEntry.isEnabled()) continue;
-
             String latestVersion = findLatestCompatibleVersion(addonInfo.getVersions());
-
-            /*If no compatible version found, disable the addon*/
             if (latestVersion == null) {
                 configEntry.setEnabled(false);
                 config.saveAddonEntry(addonName, configEntry);
@@ -111,18 +107,30 @@ public class AddonManager {
                 continue;
             }
 
-            /*
-            Update version in config ONLY if:
-            1. Upgrade is requested, or
-            2. No version is currently installed
-             */
-            if (upgrade && configEntry.getInstalledVersion() != null &&
-                    !latestVersion.equals(configEntry.getInstalledVersion())) {
-                this.logger.info("Upgrading " + addonName + " from " +
-                        configEntry.getInstalledVersion() + " to " + latestVersion);
-                configEntry.setInstalledVersion(latestVersion);
-                config.saveAddonEntry(addonName, configEntry);
-            } else if (configEntry.getInstalledVersion() == null) {
+            if (configEntry.getInstalledVersion() != null) {
+                boolean currentVersionCompatible = false;
+                for (Map.Entry<String, String> versionEntry : addonInfo.getVersions().entrySet()) {
+                    if (versionEntry.getKey().equals(configEntry.getInstalledVersion()) &&
+                            VersionUtils.isVersionCompatible(versionEntry.getValue(), currentVersion)) {
+                        currentVersionCompatible = true;
+                        break;
+                    }
+                }
+
+                if (!currentVersionCompatible) {
+                    this.logger.warning("Current version of " + addonName + " (" +
+                            configEntry.getInstalledVersion() + ") is no longer compatible. Updating to " + latestVersion);
+                    configEntry.setInstalledVersion(latestVersion);
+                    config.saveAddonEntry(addonName, configEntry);
+                }
+                else if (upgrade && !latestVersion.equals(configEntry.getInstalledVersion()) &&
+                        VersionUtils.compareVersions(latestVersion, configEntry.getInstalledVersion()) > 0) {
+                    this.logger.info("Upgrading " + addonName + " from " +
+                            configEntry.getInstalledVersion() + " to " + latestVersion);
+                    configEntry.setInstalledVersion(latestVersion);
+                    config.saveAddonEntry(addonName, configEntry);
+                }
+            } else {
                 configEntry.setInstalledVersion(latestVersion);
                 config.saveAddonEntry(addonName, configEntry);
             }
@@ -131,6 +139,18 @@ public class AddonManager {
                     !addonInfo.getDescription().equals(configEntry.getDescription())) {
                 configEntry.setDescription(addonInfo.getDescription());
                 config.saveAddonEntry(addonName, configEntry);
+            }
+        }
+
+        for (Map.Entry<String, AddonEntry> entry : config.getAddonEntries().entrySet()) {
+            String addonName = entry.getKey();
+            AddonEntry configEntry = entry.getValue();
+
+            if (configEntry.isEnabled() && !registry.getAddons().containsKey(addonName)) {
+                this.logger.warning("Addon " + addonName + " no longer exists in registry. Disabling.");
+                configEntry.setEnabled(false);
+                config.saveAddonEntry(addonName, configEntry);
+                removeAddonJar(addonName, configEntry.getInstalledVersion());
             }
         }
 
@@ -162,31 +182,29 @@ public class AddonManager {
             }
         }
 
-        if (upgrade) {
-            File pluginsFolder = this.folder.getParentFile();
-            File[] files = pluginsFolder.listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    String fileName = file.getName();
-                    if (fileName.endsWith(".jar")) {
-                        for (String addonName : config.getAddonEntries().keySet()) {
-                            if (fileName.startsWith(addonName + "-")) {
-                                AddonEntry entry = config.getAddonEntries().get(addonName);
+        File pluginsFolder = this.folder.getParentFile();
+        File[] files = pluginsFolder.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                String fileName = file.getName();
+                if (fileName.endsWith(".jar")) {
+                    for (String addonName : config.getAddonEntries().keySet()) {
+                        if (fileName.startsWith(addonName + "-")) {
+                            AddonEntry entry = config.getAddonEntries().get(addonName);
 
-                                if (!entry.isEnabled() || entry.getInstalledVersion() == null) {
-                                    continue;
-                                }
+                            if (!entry.isEnabled() || entry.getInstalledVersion() == null) {
+                                continue;
+                            }
 
-                                String correctVersion = entry.getInstalledVersion();
-                                String expectedFileName = addonName + "-" + correctVersion + ".jar";
+                            String correctVersion = entry.getInstalledVersion();
+                            String expectedFileName = addonName + "-" + correctVersion + ".jar";
 
-                                if (!fileName.equals(expectedFileName)) {
-                                    File incorrectJar = new File(pluginsFolder, fileName);
-                                    if (incorrectJar.delete()) {
-                                        this.logger.info("Removed incorrect version JAR: " + fileName);
-                                    } else {
-                                        this.logger.warning("Failed to remove incorrect version JAR: " + fileName);
-                                    }
+                            if (!fileName.equals(expectedFileName)) {
+                                File incorrectJar = new File(pluginsFolder, fileName);
+                                if (incorrectJar.delete()) {
+                                    this.logger.info("Removed incorrect version JAR: " + fileName);
+                                } else {
+                                    this.logger.warning("Failed to remove incorrect version JAR: " + fileName);
                                 }
                             }
                         }
@@ -226,7 +244,7 @@ public class AddonManager {
 
         try {
             downloadFile(downloadUrl, addonFile);
-            this.logger.info("Successfully installed " + addonName + " v" + version);
+            this.logger.success("Successfully installed " + addonName + " v" + version);
         } catch (IOException e) {
             this.logger.warning("Failed to install " + addonName + ": " + e.getMessage());
         }
