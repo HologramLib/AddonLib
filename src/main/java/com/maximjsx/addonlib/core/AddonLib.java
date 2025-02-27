@@ -71,11 +71,17 @@ public class AddonLib {
     }
 
     public void init() {
-        this.config = new AddonConfig(folder, enabledAddons);
-        this.addonManager = new AddonManager(logger, folder, version, config, registry, backupRegistry);
-        this.addonManager.loadRegistry();
-        this.addonManager.checkAndUpdateAddons(config.isAutoUpgrade());
+        try {
+            this.config = new AddonConfig(this.folder, this.enabledAddons);
+            this.addonManager = new AddonManager(this.logger, this.folder, this.version, this.config, this.registry, this.backupRegistry);
+            this.addonManager.loadRegistry();
+            this.addonManager.checkAndUpdateAddons(this.config.isAutoUpgrade());
+            this.logger.info("AddonLib initialized successfully!");
+        } catch (Exception e) {
+            this.logger.error("Failed to initialize AddonLib!" + e.getMessage());
+        }
     }
+
 
     /**
      * Reloads the addon registry and checks for updates

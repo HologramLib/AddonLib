@@ -16,10 +16,6 @@ AddonLib is a library that helps you manage optional addons for your Minecraft p
 - **Registry**: A public list of all available addons (hosted online as a JSON file).
 - **Config**: A file (`addons.json`) created by AddonLib to track installed addons and settings.
 
-## How It Works
-
-There is a global **registry** in a json format which contains:
-
 ### Registry Structure
 The **registry** is a JSON file hosted online. It contains:
 - `baseURL`: The root URL where addons are stored (e.g., a GitHub organization).
@@ -44,6 +40,10 @@ Example **Registry** ([here is the entire HologramLib registry](https://raw.gith
 ````
 
 ## Setup
+
+> [!IMPORTANT]  
+> Addon JARs must follow the naming convention <addonName>-<version>.jar  
+> Example: CommandsAddon-1.0.0.jar
 
 Shade AddonLib into your **main plugin**:
 
