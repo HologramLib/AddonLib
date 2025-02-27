@@ -81,7 +81,7 @@ public class AddonLib {
      * Reloads the addon registry and checks for updates
      */
     public void reload(boolean upgrade) {
-        if(config == null || addonManager == null) {
+        if(this.config == null || this.addonManager == null) {
             logger.error("Failed to reload AddonLib because it was not initialized! Use AddonLib#init()!");
             return;
         }

@@ -50,15 +50,16 @@ Shade AddonLib into your **main plugin**:
 Example implementation
 ````java
 AddonLib addonLib = new AddonLib(new Logger() {
-   @Override
-   public void log(LogLevel logLevel, String message) {
-     // for example: Bukkit.getLogger().log(toJavaUtilLevel(logLevel), message);
-   }
- },
- plugin.getDataFolder(), 
- plugin.getDescription().getVersion(),
- "<your.url/registry.json>",
- "<your-backup.url/registry.json>");
+  @Override
+  public void log(LogLevel logLevel, String message) {
+    // for example: Bukkit.getLogger().log(toJavaUtilLevel(logLevel), message);
+  }
+}, plugin.getDataFolder(), plugin.getDescription().getVersion())
+   .setEnabledAddons(new String[]{"Commands"})
+   .setRegistry("<your.url/registry.json>")
+   .setBackupRegistry("<your-backup.url/registry.json>")
+   .init();
+
 
 /*
 public static Level toJavaUtilLevel(LogLevel logLevel) {
