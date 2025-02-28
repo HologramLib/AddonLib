@@ -42,7 +42,7 @@ Example **Registry** ([here is the entire HologramLib registry](https://raw.gith
 ## Setup
 
 > [!IMPORTANT]  
-> Addon JARs must follow the naming convention <addonName>-<version>.jar  
+> Addon JARs must follow the naming convention `<addonName>-<version>.jar`  
 > Example: CommandsAddon-1.0.0.jar
 
 Shade AddonLib into your **main plugin**:
