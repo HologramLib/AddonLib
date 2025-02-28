@@ -57,18 +57,18 @@ AddonLib addonLib = new AddonLib(new Logger() {
 }, plugin.getDataFolder(), plugin.getDescription().getVersion())
    .setEnabledAddons(new String[]{"Commands"})
    .setRegistry("<your.url/registry.json>")
-   .setBackupRegistry("<your-backup.url/registry.json>")
+   .setBackupRegistry("<your-backup.url/registry.json>") /* Set this field! If the default registry fails, it will use the backup registry of HologramLib if this is not set. */
    .init();
 
 
 /*
-public static Level toJavaUtilLevel(LogLevel logLevel) {
-    return switch (logLevel) {
-         case INFO -> Level.INFO;
-         case SUCCESS -> Level.FINE;
-         case WARNING -> Level.WARNING;
-         case ERROR -> Level.SEVERE;
-    };
+public static Level toJavaUtilLevel(Logger.LogLevel logLevel) {
+     return switch (logLevel) {
+        case INFO -> Level.INFO;
+        case SUCCESS -> Level.FINE;
+        case WARNING -> Level.WARNING;
+        case ERROR -> Level.SEVERE;
+     };
 }
  */
 ````
