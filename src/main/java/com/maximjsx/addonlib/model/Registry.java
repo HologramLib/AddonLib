@@ -22,15 +22,18 @@
 package com.maximjsx.addonlib.model;
 
 import lombok.Data;
+import lombok.experimental.Accessors;
 
 import java.util.Map;
 
 @Data
+@Accessors(chain = true)
 public class Registry {
     private String baseURL;
     private Map<String, AddonInfo> addons;
 
     @Data
+    @Accessors(chain = true)
     public static class AddonInfo {
         private String description;
         private Map<String, String> versions; // addon version -> required Plugin (e.g. HologramLib) version

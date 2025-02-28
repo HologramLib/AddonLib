@@ -22,8 +22,10 @@
 package com.maximjsx.addonlib.model;
 
 import lombok.Data;
+import lombok.experimental.Accessors;
 
 @Data
+@Accessors(chain = true)
 public class AddonEntry {
     private boolean enabled;
     private String installedVersion;

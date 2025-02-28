@@ -28,6 +28,7 @@ import lombok.Setter;
 import lombok.experimental.Accessors;
 
 import java.io.File;
+import java.util.Objects;
 
 public class AddonLib {
 
@@ -48,7 +49,7 @@ public class AddonLib {
     @Getter @Setter @Accessors(chain = true)
     private String backupRegistry = "https://raw.githubusercontent.com/HologramLib/Addons/main/registry.json";
 
-    /*
+    /**
     Addons which will be enabled by default when the config is created
      */
     @Getter @Setter @Accessors(chain = true)
@@ -61,36 +62,50 @@ public class AddonLib {
     private final String version;
 
     /**
+     * Creates a new AddonLib instance
+     * @param logger Logger for addon operations
      * @param folder The plugins folder
      * @param version The version of the plugin e.g. 1.7.1 (HologramLib)
      */
     public AddonLib(Logger logger, File folder, String version) {
-        this.logger = logger;
-        this.folder = folder;
-        this.version = version;
+        this.logger = Objects.requireNonNull(logger, "Logger cannot be null");
+        this.folder = Objects.requireNonNull(folder, "Folder cannot be null");
+        this.version = Objects.requireNonNull(version, "Version cannot be null");
     }
 
+    /**
+     * Initializes the addon library, loading configuration and registry
+     */
     public void init() {
         try {
             this.config = new AddonConfig(this.folder, this.enabledAddons);
-            this.addonManager = new AddonManager(this.logger, this.folder, this.version, this.config, this.registry, this.backupRegistry);
+            this.addonManager = new AddonManager(
+                    this.logger,
+                    this.folder,
+                    this.version,
+                    this.config,
+                    this.registry,
+                    this.backupRegistry
+            );
             this.addonManager.loadRegistry();
             this.addonManager.checkAndUpdateAddons(this.config.isAutoUpgrade());
             this.logger.info("AddonLib initialized successfully!");
         } catch (Exception e) {
-            this.logger.error("Failed to initialize AddonLib!" + e.getMessage());
+            this.logger.error("Failed to initialize AddonLib: " + e.getMessage());
         }
     }
 
 
     /**
      * Reloads the addon registry and checks for updates
+     * @param upgrade whether to upgrade addons to newer versions if available
      */
     public void reload(boolean upgrade) {
-        if(this.config == null || this.addonManager == null) {
+        if (this.config == null || this.addonManager == null) {
             logger.error("Failed to reload AddonLib because it was not initialized! Use AddonLib#init()!");
             return;
         }
+
         this.config.loadConfig();
         this.addonManager.loadRegistry();
         this.addonManager.checkAndUpdateAddons(upgrade);

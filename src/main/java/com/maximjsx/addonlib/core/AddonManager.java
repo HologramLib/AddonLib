@@ -29,201 +29,244 @@ import com.maximjsx.addonlib.util.Logger;
 import com.maximjsx.addonlib.util.VersionUtils;
 
 import java.io.*;
+import java.net.URI;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 public class AddonManager {
-    private final String PRIMARY_REGISTRY_URL;
-    private final String BACKUP_REGISTRY_URL;
+    private final String primaryRegistryUrl;
+    private final String backupRegistryUrl;
 
     private final Logger logger;
     private final AddonConfig config;
     private Registry registry;
-    private final File folder;
+    private final File pluginsFolder;
     private final String currentVersion;
 
-    public AddonManager(Logger logger, File folder, String version, AddonConfig config, String url, String backupUrl) {
-        this.PRIMARY_REGISTRY_URL = url;
-        this.BACKUP_REGISTRY_URL = backupUrl;
-        this.logger = logger;
-        this.folder = folder;
-        this.currentVersion = version;
-        this.config = config;
-        this.checkAndUpdateAddons(config.isAutoUpgrade());
+    /**
+     * Creates a new AddonManager
+     * @param logger Logger for addon operations
+     * @param folder The plugins folder
+     * @param version Current plugin version
+     * @param config Addon configuration
+     * @param primaryUrl Primary registry URL
+     * @param backupUrl Backup registry URL
+     */
+    public AddonManager(Logger logger, File folder, String version, AddonConfig config,
+                        String primaryUrl, String backupUrl) {
+        this.primaryRegistryUrl = Objects.requireNonNull(primaryUrl, "Primary URL cannot be null");
+        this.backupRegistryUrl = Objects.requireNonNull(backupUrl, "Backup URL cannot be null");
+        this.logger = Objects.requireNonNull(logger, "Logger cannot be null");
+        this.pluginsFolder = Objects.requireNonNull(folder.getParentFile(), "Plugins folder cannot be null");
+        this.currentVersion = Objects.requireNonNull(version, "Version cannot be null");
+        this.config = Objects.requireNonNull(config, "Configuration cannot be null");
     }
 
+    /**
+     * Loads the addon registry from primary or backup URL
+     */
     public void loadRegistry() {
         try {
-            String registryJson = fetchUrl(PRIMARY_REGISTRY_URL);
-            if (registryJson == null) {
-                registryJson = fetchUrl(BACKUP_REGISTRY_URL);
-            }
+            String registryJson = Optional.ofNullable(fetchUrl(primaryRegistryUrl))
+                    .orElse(fetchUrl(backupRegistryUrl));
+
             if (registryJson != null) {
                 registry = new Gson().fromJson(registryJson, Registry.class);
-            }
-            if (registry != null) {
-                config.mergeNewAddons(registry.getAddons());
+
+                if (registry != null) {
+                    config.mergeNewAddons(registry.getAddons());
+                }
             }
         } catch (Exception e) {
             this.logger.warning("Failed to load addon registry: " + e.getMessage());
         }
     }
 
+    /**
+     * Checks for addon updates and installs or updates enabled addons
+     * @param upgrade whether to upgrade addons to newer versions if available
+     */
     public void checkAndUpdateAddons(boolean upgrade) {
         loadRegistry();
+
         if (registry == null) {
             this.logger.warning("Cannot check addons - registry not loaded");
             return;
         }
 
-        for (Map.Entry<String, Registry.AddonInfo> entry : registry.getAddons().entrySet()) {
-            String addonName = entry.getKey();
-            Registry.AddonInfo addonInfo = entry.getValue();
-            AddonEntry configEntry = config.getAddonEntries().get(addonName);
-            if (configEntry == null) {
-                configEntry = new AddonEntry();
-                configEntry.setEnabled(false);
-                configEntry.setDescription(addonInfo.getDescription());
-                config.saveAddonEntry(addonName, configEntry);
-                continue;
-            }
+        registry.getAddons().forEach((addonName, addonInfo) ->
+                processRegistryAddon(addonName, addonInfo, upgrade));
 
-            if (!configEntry.isEnabled()) continue;
-            String latestVersion = findLatestCompatibleVersion(addonInfo.getVersions());
-            if (latestVersion == null) {
-                configEntry.setEnabled(false);
-                config.saveAddonEntry(addonName, configEntry);
-                this.logger.warning("Disabled incompatible addon: " + addonName);
-                removeAddonJar(addonName, configEntry.getInstalledVersion());
-                continue;
-            }
-
-            if (configEntry.getInstalledVersion() != null) {
-                boolean currentVersionCompatible = false;
-                for (Map.Entry<String, String> versionEntry : addonInfo.getVersions().entrySet()) {
-                    if (versionEntry.getKey().equals(configEntry.getInstalledVersion()) &&
-                            VersionUtils.isVersionCompatible(versionEntry.getValue(), currentVersion)) {
-                        currentVersionCompatible = true;
-                        break;
-                    }
-                }
-
-                if (!currentVersionCompatible) {
-                    this.logger.warning("Current version of " + addonName + " (" +
-                            configEntry.getInstalledVersion() + ") is no longer compatible. Updating to " + latestVersion);
-                    configEntry.setInstalledVersion(latestVersion);
-                    config.saveAddonEntry(addonName, configEntry);
-                }
-                else if (upgrade && !latestVersion.equals(configEntry.getInstalledVersion()) &&
-                        VersionUtils.compareVersions(latestVersion, configEntry.getInstalledVersion()) > 0) {
-                    this.logger.info("Upgrading " + addonName + " from " +
-                            configEntry.getInstalledVersion() + " to " + latestVersion);
-                    configEntry.setInstalledVersion(latestVersion);
-                    config.saveAddonEntry(addonName, configEntry);
-                }
-            } else {
-                configEntry.setInstalledVersion(latestVersion);
-                config.saveAddonEntry(addonName, configEntry);
-            }
-
-            if (addonInfo.getDescription() != null &&
-                    !addonInfo.getDescription().equals(configEntry.getDescription())) {
-                configEntry.setDescription(addonInfo.getDescription());
-                config.saveAddonEntry(addonName, configEntry);
-            }
-        }
-
-        for (Map.Entry<String, AddonEntry> entry : config.getAddonEntries().entrySet()) {
-            String addonName = entry.getKey();
-            AddonEntry configEntry = entry.getValue();
-
+        config.getAddonEntries().forEach((addonName, configEntry) -> {
             if (configEntry.isEnabled() && !registry.getAddons().containsKey(addonName)) {
                 this.logger.warning("Addon " + addonName + " no longer exists in registry. Disabling.");
                 configEntry.setEnabled(false);
                 config.saveAddonEntry(addonName, configEntry);
                 removeAddonJar(addonName, configEntry.getInstalledVersion());
             }
-        }
+        });
 
         cleanupAddonJars();
 
-        for (Map.Entry<String, AddonEntry> entry : config.getAddonEntries().entrySet()) {
-            String addonName = entry.getKey();
-            AddonEntry configEntry = entry.getValue();
-
+        /* Install missing jar files */
+        config.getAddonEntries().forEach((addonName, configEntry) -> {
             if (configEntry.isEnabled() && configEntry.getInstalledVersion() != null) {
-                File addonFile = new File(this.folder.getParentFile(),
-                        addonName + "-" + configEntry.getInstalledVersion() + ".jar");
+                File addonFile = getAddonJarFile(addonName, configEntry.getInstalledVersion());
 
                 if (!addonFile.exists()) {
                     this.logger.info("Addon JAR missing: " + addonName + ". Downloading...");
                     installAddon(addonName, configEntry.getInstalledVersion());
                 }
             }
+        });
+    }
+
+    /**
+     * Process a single addon from the registry
+     * @param addonName Name of the addon
+     * @param addonInfo Addon information from registry
+     * @param upgrade Whether to upgrade addons to newer versions if available
+     */
+    private void processRegistryAddon(String addonName, Registry.AddonInfo addonInfo, boolean upgrade) {
+        final AddonEntry configEntry = config.getAddonEntries().get(addonName);
+        if (configEntry == null) {
+            AddonEntry newEntry = new AddonEntry()
+                    .setEnabled(false)
+                    .setDescription(addonInfo.getDescription());
+            config.saveAddonEntry(addonName, newEntry);
+            return;
+        }
+
+        if (!configEntry.isEnabled()) return;
+
+        String latestVersion = findLatestCompatibleVersion(addonInfo.getVersions());
+        if (latestVersion == null) {
+            configEntry.setEnabled(false);
+            config.saveAddonEntry(addonName, configEntry);
+            this.logger.warning("Disabled incompatible addon: " + addonName);
+            removeAddonJar(addonName, configEntry.getInstalledVersion());
+            return;
+        }
+
+        if (configEntry.getInstalledVersion() != null) {
+            boolean currentVersionCompatible = addonInfo.getVersions().entrySet().stream()
+                    .anyMatch(entry -> entry.getKey().equals(configEntry.getInstalledVersion()) &&
+                            VersionUtils.isVersionCompatible(entry.getValue(), currentVersion));
+
+            if (!currentVersionCompatible) {
+                this.logger.warning("Current version of " + addonName + " (" +
+                        configEntry.getInstalledVersion() + ") is no longer compatible. Updating to " + latestVersion);
+                configEntry.setInstalledVersion(latestVersion);
+                config.saveAddonEntry(addonName, configEntry);
+            }
+            else if (upgrade &&
+                    !latestVersion.equals(configEntry.getInstalledVersion()) &&
+                    VersionUtils.compareVersions(latestVersion, configEntry.getInstalledVersion()) > 0) {
+                this.logger.info("Upgrading " + addonName + " from " +
+                        configEntry.getInstalledVersion() + " to " + latestVersion);
+                configEntry.setInstalledVersion(latestVersion);
+                config.saveAddonEntry(addonName, configEntry);
+            }
+        } else {
+            configEntry.setInstalledVersion(latestVersion);
+            config.saveAddonEntry(addonName, configEntry);
+        }
+
+        if (addonInfo.getDescription() != null &&
+                !addonInfo.getDescription().equals(configEntry.getDescription())) {
+            configEntry.setDescription(addonInfo.getDescription());
+            config.saveAddonEntry(addonName, configEntry);
         }
     }
 
+    /**
+     * Cleans up outdated and disabled addon JAR files
+     */
     private void cleanupAddonJars() {
-        for (Map.Entry<String, AddonEntry> entry : config.getAddonEntries().entrySet()) {
-            String addonName = entry.getKey();
-            AddonEntry configEntry = entry.getValue();
-
+        /* Remove disabled addons */
+        config.getAddonEntries().forEach((addonName, configEntry) -> {
             if (!configEntry.isEnabled() && configEntry.getInstalledVersion() != null) {
                 removeAddonJar(addonName, configEntry.getInstalledVersion());
             }
-        }
+        });
 
-        File pluginsFolder = this.folder.getParentFile();
-        File[] files = pluginsFolder.listFiles();
-        if (files != null) {
-            for (File file : files) {
-                String fileName = file.getName();
-                if (fileName.endsWith(".jar")) {
-                    for (String addonName : config.getAddonEntries().keySet()) {
-                        if (fileName.startsWith(addonName + "-")) {
-                            AddonEntry entry = config.getAddonEntries().get(addonName);
+        /* Remove incorrect version JARs */
+        try (Stream<Path> files = Files.list(pluginsFolder.toPath())) {
+            files.map(Path::getFileName)
+                    .map(Path::toString)
+                    .filter(name -> name.endsWith(".jar"))
+                    .forEach(fileName -> {
+                        for (String addonName : config.getAddonEntries().keySet()) {
+                            if (fileName.startsWith(addonName + "-")) {
+                                AddonEntry entry = config.getAddonEntries().get(addonName);
 
-                            if (!entry.isEnabled() || entry.getInstalledVersion() == null) {
-                                continue;
-                            }
+                                if (!entry.isEnabled() || entry.getInstalledVersion() == null) {
+                                    continue;
+                                }
 
-                            String correctVersion = entry.getInstalledVersion();
-                            String expectedFileName = addonName + "-" + correctVersion + ".jar";
+                                String correctVersion = entry.getInstalledVersion();
+                                String expectedFileName = addonName + "-" + correctVersion + ".jar";
 
-                            if (!fileName.equals(expectedFileName)) {
-                                File incorrectJar = new File(pluginsFolder, fileName);
-                                if (incorrectJar.delete()) {
-                                    this.logger.info("Removed incorrect version JAR: " + fileName);
-                                } else {
-                                    this.logger.warning("Failed to remove incorrect version JAR: " + fileName);
+                                if (!fileName.equals(expectedFileName)) {
+                                    Path incorrectJar = pluginsFolder.toPath().resolve(fileName);
+                                    try {
+                                        Files.delete(incorrectJar);
+                                        this.logger.info("Removed incorrect version JAR: " + fileName);
+                                    } catch (IOException e) {
+                                        this.logger.warning("Failed to remove incorrect version JAR: " + fileName);
+                                    }
                                 }
                             }
                         }
-                    }
-                }
-            }
+                    });
+        } catch (IOException e) {
+            this.logger.warning("Error while cleaning up addon JARs: " + e.getMessage());
         }
     }
 
+    /**
+     * Removes an addon JAR file
+     * @param addonName addon name
+     * @param version addon version
+     */
     private void removeAddonJar(String addonName, String version) {
         if (version == null) return;
 
-        File jar = new File(this.folder.getParentFile(),
-                addonName + "-" + version + ".jar");
+        File jar = getAddonJarFile(addonName, version);
         if (jar.exists()) {
-            if (jar.delete()) {
-                this.logger.info("Removed disabled addon JAR: " + jar.getName());
-            } else {
-                this.logger.warning("Failed to remove disabled addon JAR: " + jar.getName());
+            try {
+                Files.delete(jar.toPath());
+                this.logger.info("Removed addon JAR: " + jar.getName());
+            } catch (IOException e) {
+                this.logger.warning("Failed to remove addon JAR: " + jar.getName());
             }
         }
     }
 
+    /**
+     * Gets File object for an addon JAR
+     * @param addonName addon name
+     * @param version addon version
+     * @return File object for the JAR
+     */
+    private File getAddonJarFile(String addonName, String version) {
+        return new File(pluginsFolder, addonName + "-" + version + ".jar");
+    }
+
+    /**
+     * Finds the latest version compatible with current plugin version
+     * @param versions map of addon versions to required plugin versions
+     * @return latest compatible version, or null if none found
+     */
     private String findLatestCompatibleVersion(Map<String, String> versions) {
         return versions.entrySet().stream()
                 .filter(e -> VersionUtils.isVersionCompatible(e.getValue(), currentVersion))
@@ -232,11 +275,16 @@ public class AddonManager {
                 .orElse(null);
     }
 
+    /**
+     * Installs an addon from the registry
+     * @param addonName addon name
+     * @param version version to install
+     */
     private void installAddon(String addonName, String version) {
         String downloadUrl = String.format("%s%s/releases/download/%s/%s-%s.jar",
                 registry.getBaseURL(), addonName, version, addonName, version);
 
-        File addonFile = new File(this.folder.getParentFile(), addonName + "-" + version + ".jar");
+        File addonFile = getAddonJarFile(addonName, version);
 
         try {
             downloadFile(downloadUrl, addonFile);
@@ -246,19 +294,12 @@ public class AddonManager {
         }
     }
 
-    private String fetchUrl(String urlStr) {
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(new URL(urlStr).openStream()))) {
-            StringBuilder buffer = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                buffer.append(line);
-            }
-            return buffer.toString();
-        } catch (Exception ignore) {}
-        return null;
-    }
-
+    /**
+     * Downloads a file from a URL to a local file
+     * @param urlStr URL to download from
+     * @param file destination file
+     * @throws IOException if download fails
+     */
     private void downloadFile(String urlStr, File file) throws IOException {
         File tempFile = new File(file.getParentFile(), file.getName() + ".tmp");
         try (
@@ -269,5 +310,28 @@ public class AddonManager {
             writeChannel.transferFrom(readChannel, 0, Long.MAX_VALUE);
         }
         Files.move(tempFile.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    /**
+     * Fetches content from a URL
+     * @param urlStr URL to fetch
+     * @return content as String, or null if failed
+     */
+    private String fetchUrl(String urlStr) {
+        try {
+            URL url = new URI(urlStr).toURL();
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(url.openStream()))) {
+                StringBuilder buffer = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    buffer.append(line);
+                }
+                return buffer.toString();
+            }
+        } catch (Exception e) {
+            // failure - will try backup URL
+            return null;
+        }
     }
 }

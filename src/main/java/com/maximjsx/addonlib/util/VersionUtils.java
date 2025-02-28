@@ -21,20 +21,34 @@
 
 package com.maximjsx.addonlib.util;
 
+import java.util.Arrays;
+import java.util.Objects;
+
 public class VersionUtils {
+
     /**
      * Compares two version strings in the format "x.y.z"
+     * @param v1 First version string
+     * @param v2 Second version string
      * @return positive if v1 > v2, negative if v1 < v2, 0 if equal
      */
     public static int compareVersions(String v1, String v2) {
-        String[] parts1 = v1.split("\\.");
-        String[] parts2 = v2.split("\\.");
+        Objects.requireNonNull(v1, "VersionUtils#compareVersions(..): First version cannot be null");
+        Objects.requireNonNull(v2, "VersionUtils#compareVersions(..): Second version cannot be null");
+
+        int[] parts1 = Arrays.stream(v1.split("\\."))
+                .mapToInt(Integer::parseInt)
+                .toArray();
+
+        int[] parts2 = Arrays.stream(v2.split("\\."))
+                .mapToInt(Integer::parseInt)
+                .toArray();
 
         int length = Math.max(parts1.length, parts2.length);
 
         for (int i = 0; i < length; i++) {
-            int num1 = i < parts1.length ? Integer.parseInt(parts1[i]) : 0;
-            int num2 = i < parts2.length ? Integer.parseInt(parts2[i]) : 0;
+            int num1 = i < parts1.length ? parts1[i] : 0;
+            int num2 = i < parts2.length ? parts2[i] : 0;
 
             if (num1 != num2) {
                 return num1 - num2;
@@ -48,6 +62,7 @@ public class VersionUtils {
      * Checks if the current plugin version is compatible with the required version
      * @param requiredVersion minimum version required by the addon
      * @param currentVersion current Plugin (e.g. HologramLib) version
+     * @return true if current version is greater than or equal to required version
      */
     public static boolean isVersionCompatible(String requiredVersion, String currentVersion) {
         return compareVersions(currentVersion, requiredVersion) >= 0;

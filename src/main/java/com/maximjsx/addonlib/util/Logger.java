@@ -22,6 +22,10 @@
 package com.maximjsx.addonlib.util;
 
 public interface Logger {
+    enum LogLevel {
+        ERROR, WARNING, INFO, SUCCESS
+    }
+
     void log(LogLevel level, String message);
 
     default void error(String message) {
