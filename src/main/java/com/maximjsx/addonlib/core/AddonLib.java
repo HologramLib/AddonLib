@@ -44,7 +44,7 @@ public class AddonLib {
     private String registry = "https://cdn.maximjsx.com/hologramlib/registry.json";
 
     /**
-     * The primary registry URL
+     * The backup registry URL
      */
     @Getter @Setter @Accessors(chain = true)
     private String backupRegistry = "https://raw.githubusercontent.com/HologramLib/Addons/main/registry.json";
