@@ -1,17 +1,23 @@
-# AddonLib
+<div align="center">
+<h1>AddonLib</h1>
+<p>AddonLib helps Minecraft plugin developers handle optional addons,<br> checking compatibility and making installation/updates easier for users</p>
 
-AddonLib is a library that helps you manage optional addons for your Minecraft plugin, ensuring compatibility and simplifying installation and updates.
+[![Discord](https://img.shields.io/badge/Discord_Server-7289DA?style=flat&logo=discord&logoColor=white)](https://discord.gg/2UTkYj26B4)
+[![JitPack](https://jitpack.io/v/HologramLib/AddonLib.svg)](https://jitpack.io/#HologramLib/AddonLib)
+   
+</div>
+
 
 ## Why Use AddonLib?
 
-- **Compatibility checks**: Ensures **addons** match your plugin's version.
+- **Compatibility checks**: Confirms **addons** match your plugin's version.
 - **Easy Updates**: Automatic updates for all addons.
 - **Centralized Management**: Track addons via a simple **config** file.
 - **User Friendly**: Users can install **addons** without manual downloads.
 
 ### Definitions
 
-- **Main Plugin**: Your plugin (e.g., HologramLib) that others can extend with addons.
+- **Main Plugin**: Your core plugin (like HologramLib) that others can extend with addons.
 - **Addon**: A separate plugin that depends on your main plugin to work.
 - **Registry**: A public list of all available addons (hosted online as a JSON file).
 - **Config**: A file (`addons.json`) created by AddonLib to track installed addons and settings.
